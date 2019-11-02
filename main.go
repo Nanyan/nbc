@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"math/big"
 	"os"
 )
@@ -13,8 +14,8 @@ var (
 )
 
 func init() {
-	flag.IntVar(&ibase, "i", 0, "input base, must be 0 or a value between 2 and 62. default is determined by input number.")
-	flag.IntVar(&obase, "o", 0, "output base, must be 0 or a value between 2 and 62. default is determined by input base.")
+	flag.IntVar(&ibase, "i", 0, "input base, must be 0 or an integer between 2 and 62. default is determined by input number.")
+	flag.IntVar(&obase, "o", 0, "output base, must be 0 or an integer between 2 and 62. default is determined by input base.")
 	flag.BoolVar(&help, "h", false, "show the usage.")
 }
 
@@ -36,12 +37,21 @@ func main() {
 		exitErr("invalid output base")
 	}
 
+	var inputStr string
 	args := flag.Args()
-	if len(args) != 1 {
+	switch len(args) {
+	case 0:
+		//check pipeline input
+		var ok bool
+		inputStr, ok = checkGetPipelineInput()
+		if !ok {
+			exitErr("this app take one and only one argument as the input number")
+		}
+	case 1:
+		inputStr = args[0]
+	default:
 		exitErr("this app take one and only one argument as the input number")
 	}
-
-	inputStr := args[0]
 
 	f, ok := TrySpreadExpOrScienceInteger(inputStr)
 	if ok {
@@ -53,17 +63,17 @@ func main() {
 
 	input, ok := new(big.Int).SetString(inputStr, ibase)
 	if !ok {
-		exitErr("invalid input number and/or input base")
+		exitErr(fmt.Sprintf("invalid input number (and/or input base): %q", inputStr))
 	}
 
 	determineObase()
 	out := input.Text(obase)
 	fmt.Printf("%s%s\n", oPrefix(), out)
-
 }
 
 func exitErr(msg string) {
 	fmt.Println(msg)
+	fmt.Println()
 	Usage()
 	os.Exit(1)
 }
@@ -73,6 +83,37 @@ func checkBase(base int) bool {
 		return true
 	}
 	return false
+}
+
+func checkGetPipelineInput() (string, bool) {
+	info, err := os.Stdin.Stat()
+	if err != nil {
+		return "", false
+	}
+	if (info.Mode()&os.ModeNamedPipe) == os.ModeNamedPipe ||
+		((info.Mode()&os.ModeCharDevice) == os.ModeCharDevice && info.Size() > 0) {
+		bytes, err := ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			return "", false
+		}
+		if l := len(bytes); l > 0 {
+			//trim quotation and line break
+			if bytes[0] == '"' || bytes[0] == '\'' {
+				bytes = bytes[1:]
+				l -= 1
+			}
+			for l > 0 {
+				if b := bytes[l-1]; b == '\n' || b == '\r' || b == '"' || b == '\'' {
+					l -= 1
+				} else {
+					break
+				}
+			}
+			bytes = bytes[:l]
+		}
+		return string(bytes), true
+	}
+	return "", false
 }
 
 //determineObase determine the output base when flag -o is not set.
