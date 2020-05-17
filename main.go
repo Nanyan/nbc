@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"math/big"
 	"os"
+	"strings"
 )
 
 var (
@@ -37,22 +38,23 @@ func main() {
 		exitErr("invalid output base")
 	}
 
-	var inputStr string
+	var origin string
 	args := flag.Args()
 	switch len(args) {
 	case 0:
 		//check pipeline input
 		var ok bool
-		inputStr, ok = checkGetPipelineInput()
+		origin, ok = checkGetPipelineInput()
 		if !ok {
 			exitErr("this app take one and only one argument as the input number")
 		}
 	case 1:
-		inputStr = args[0]
+		origin = args[0]
 	default:
 		exitErr("this app take one and only one argument as the input number")
 	}
 
+	inputStr := trimInput(origin)
 	f, ok := TrySpreadExpOrScienceInteger(inputStr)
 	if ok {
 		ibase = 10
@@ -63,7 +65,7 @@ func main() {
 
 	input, ok := new(big.Int).SetString(inputStr, ibase)
 	if !ok {
-		exitErr(fmt.Sprintf("invalid input number (and/or input base): %q", inputStr))
+		exitErr(fmt.Sprintf("invalid input number (and/or input base): %q , after trim: %s", origin, inputStr))
 	}
 
 	determineObase()
@@ -96,24 +98,13 @@ func checkGetPipelineInput() (string, bool) {
 		if err != nil {
 			return "", false
 		}
-		if l := len(bytes); l > 0 {
-			//trim quotation and line break
-			if bytes[0] == '"' || bytes[0] == '\'' {
-				bytes = bytes[1:]
-				l -= 1
-			}
-			for l > 0 {
-				if b := bytes[l-1]; b == '\n' || b == '\r' || b == '"' || b == '\'' {
-					l -= 1
-				} else {
-					break
-				}
-			}
-			bytes = bytes[:l]
-		}
 		return string(bytes), true
 	}
 	return "", false
+}
+
+func trimInput(s string) string {
+	return strings.Trim(s, "'\"\r\n ")
 }
 
 //determineObase determine the output base when flag -o is not set.
