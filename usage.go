@@ -47,8 +47,8 @@ If the output base is not set(or set to 0), then the actual output base will be 
 For bases <= 36, lower and upper case letters are considered the same: The letters 'a' to 'z' and 'A' to 'Z' represent digit values 10 to 35. For bases > 36, the upper case letters 'A' to 'Z' represent the digit values 36 to 61.
 
 The input number also support scientific notation base 10, such as 1e18 or 1^18.`,
-		Flags:   flags,
-		Example: "nbc 0xff    //convert hex number 0xff to decimal\n  nbc 10^18   //convert a big decimal to hexadecimal\n  nbc 1e18    //also convert a big decimal to hexadecimal\n  nbc -o 2 16 //convert decimal 16 to binary string",
+		Flags: flags,
+		Example: "nbc 0xff    	//convert hex number 0xff to decimal\n  nbc 10^18   	//convert a big decimal to hexadecimal\n  nbc 1e18    	//also convert a big decimal to hexadecimal\n  nbc -o 2 16 	//convert decimal 16 to binary string\n  nbc -b -s \"100;200\"	//convert batch decimal to hex, showing input in the result, as 100 : 0x64\n  echo 0x10|nbc 	//use pipeline input\n",
 	}
 	err := t.Execute(w, data)
 	if err != nil {
