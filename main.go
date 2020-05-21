@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"os"
 )
@@ -11,6 +10,7 @@ import (
 var (
 	ibase, obase           int
 	batch, showInput, help bool
+	file                   string
 )
 
 func init() {
@@ -19,6 +19,7 @@ func init() {
 	flag.BoolVar(&batch, "b", false, "batch mode, one line for a number, or separate numbers by semicolon.")
 	flag.BoolVar(&showInput, "s", false, "show input on the result.")
 	flag.BoolVar(&help, "h", false, "show the usage.")
+	flag.StringVar(&file, "f", "", "read inputs from file. this will ignores the -b option.")
 }
 
 func main() {
@@ -39,25 +40,16 @@ func main() {
 		exitErr("invalid output base")
 	}
 
+	var inputs []*Input
 	var origin string
-	args := flag.Args()
-	switch len(args) {
-	case 0:
-		//check pipeline input
-		var ok bool
-		origin, ok = checkGetPipelineInput()
-		if !ok {
-			exitErr("this app take one and only one argument as the input number")
-		}
-	case 1:
-		origin = args[0]
-	default:
-		exitErr("this app take one and only one argument as the input number")
+	var err error
+	if file != "" {
+		origin, inputs, err = InputsFromFile(file)
+	} else {
+		origin, inputs, err = InputsFromArgsOrPipeline(flag.Args(), batch)
 	}
-
-	inputs := NewInput(origin, batch)
-	if len(inputs) == 0 {
-		exitErr(fmt.Sprintf("no valid input, origin: %q", origin))
+	if err != nil {
+		exitErr(fmt.Sprintf("%q\terr=%v ", origin, err))
 	}
 
 	//determine ibase by first input if ibase not set
@@ -99,9 +91,9 @@ func convert(origin, s string) error {
 
 	out := input.Text(obase)
 	if showInput {
-		fmt.Printf("%s : %s%s\n", s, oPrefix(), out)
+		fmt.Printf("%s%s : %s%s\n", prefix(ibase), s, prefix(obase), out)
 	} else {
-		fmt.Printf("%s%s\n", oPrefix(), out)
+		fmt.Printf("%s%s\n", prefix(obase), out)
 	}
 	return nil
 }
@@ -111,22 +103,6 @@ func checkBase(base int) bool {
 		return true
 	}
 	return false
-}
-
-func checkGetPipelineInput() (string, bool) {
-	info, err := os.Stdin.Stat()
-	if err != nil {
-		return "", false
-	}
-	if (info.Mode()&os.ModeNamedPipe) == os.ModeNamedPipe ||
-		((info.Mode()&os.ModeCharDevice) == os.ModeCharDevice && info.Size() > 0) {
-		bytes, err := ioutil.ReadAll(os.Stdin)
-		if err != nil {
-			return "", false
-		}
-		return string(bytes), true
-	}
-	return "", false
 }
 
 //determineObase determine the output base when flag -o is not set.
@@ -182,8 +158,8 @@ func trimPrefix(istr string) string {
 	return istr
 }
 
-func oPrefix() string {
-	switch obase {
+func prefix(base int) string {
+	switch base {
 	case 2:
 		return "0b"
 	case 8:
