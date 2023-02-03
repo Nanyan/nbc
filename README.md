@@ -5,7 +5,7 @@ A very very simple and easy to use number base converter written in go.
 ## Install
 
 ```bash
-go get -u github.com/nanyan/nbc
+go install github.com/nanyan/nbc@latest
 ```
 
 ## Usage
